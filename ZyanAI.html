@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZyanAI - Asisten Cerdas Anda</title>
+    <style>
+        /* CSS yang sudah ada */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #6dd5ed, #2193b0);
+            color: #333;
+        }
+
+        .container {
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+            padding: 30px;
+            width: 90%;
+            max-width: 600px;
+            text-align: center;
+            animation: fadeIn 1s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        h1 {
+            color: #2193b0;
+            margin-bottom: 20px;
+            font-size: 2.5em;
+        }
+
+        #chat-box {
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            height: 300px;
+            overflow-y: auto;
+            padding: 15px;
+            margin-bottom: 20px;
+            text-align: left;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+            display: flex; /* Tambahkan ini */
+            flex-direction: column; /* Tambahkan ini */
+        }
+
+        .message {
+            margin-bottom: 10px;
+            padding: 8px 12px;
+            border-radius: 6px;
+            display: inline-block;
+            max-width: 80%;
+            word-wrap: break-word; /* Memastikan teks panjang tidak keluar kotak */
+        }
+
+        .user-message {
+            background-color: #e0f7fa;
+            align-self: flex-end; /* Pesan user di kanan */
+            margin-left: auto;
+            text-align: right;
+        }
+
+        .ai-message {
+            background-color: #c8e6c9;
+            align-self: flex-start; /* Pesan AI di kiri */
+            margin-right: auto;
+            text-align: left;
+        }
+
+        #user-input {
+            width: calc(100% - 100px);
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-size: 1em;
+            margin-right: 10px;
+        }
+
+        button {
+            padding: 12px 20px;
+            background-color: #2193b0;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #1a7b92;
+        }
+
+        .input-area {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .loading-dots {
+            display: inline-block;
+            animation: typing 1.5s infinite;
+            opacity: 0;
+            margin-left: 5px;
+        }
+
+        @keyframes typing {
+            0% { opacity: 0; }
+            33% { opacity: 1; }
+            66% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>ZyanAI</h1>
+        <div id="chat-box">
+            <div class="message ai-message">Halo! Saya ZyanAI, asisten cerdas Anda. Ada yang bisa saya bantu?</div>
+        </div>
+        <div class="input-area">
+            <input type="text" id="user-input" placeholder="Ketik pesan Anda...">
+            <button id="send-button" onclick="sendMessage()">Kirim</button>
+        </div>
+    </div>
+
+    <script>
+        // GANTI DENGAN API KEY ANDA DARI GROQCLOUD!
+        const GROQ_API_KEY = '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';
+        const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions'; // Endpoint chat completion
+        const GROQ_MODEL = 'llama3-8b-8192'; // Anda bisa coba model lain seperti 'llama3-70b-8192'
+
+        const chatBox = document.getElementById('chat-box');
+        const userInput = document.getElementById('user-input');
+        const sendButton = document.getElementById('send-button');
+
+        // Simpan riwayat percakapan untuk konteks AI
+        let conversationHistory = [
+            {
+                role: "system",
+                content: "Anda adalah ZyanAI, asisten AI yang ramah dan membantu. Berikan jawaban yang informatif dan relevan."
+            }
+        ];
+
+        async function sendMessage() {
+            const userMessageText = userInput.value.trim();
+
+            if (userMessageText === '') {
+                return; // Jangan kirim pesan kosong
+            }
+
+            // Tambahkan pesan pengguna ke riwayat dan tampilkan
+            conversationHistory.push({ role: "user", content: userMessageText });
+            appendMessage(userMessageText, 'user-message');
+
+            userInput.value = ''; // Bersihkan input
+            sendButton.disabled = true; // Nonaktifkan tombol kirim
+            userInput.disabled = true; // Nonaktifkan input
+
+            // Tampilkan indikator mengetik
+            const loadingMessageDiv = document.createElement('div');
+            loadingMessageDiv.classList.add('message', 'ai-message');
+            loadingMessageDiv.innerHTML = 'ZyanAI sedang mengetik<span class="loading-dots">...</span>';
+            chatBox.appendChild(loadingMessageDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            try {
+                const response = await fetch(GROQ_API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${GROQ_API_KEY}` // Kunci API di header
+                    },
+                    body: JSON.stringify({
+                        messages: conversationHistory, // Kirim seluruh riwayat percakapan
+                        model: GROQ_MODEL,
+                        temperature: 0.7, // Kontrol kreativitas jawaban (0.0-1.0)
+                        max_tokens: 200, // Batasan panjang jawaban dari AI
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                let aiResponseText = 'Maaf, ZyanAI gagal memberikan respons.';
+
+                // Periksa struktur respons dari Groq API
+                if (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) {
+                    aiResponseText = data.choices[0].message.content;
+                    // Tambahkan balasan AI ke riwayat percakapan
+                    conversationHistory.push({ role: "assistant", content: aiResponseText });
+                } else {
+                    console.error('Unexpected API response structure:', data);
+                }
+
+                // Hapus indikator mengetik dan tampilkan balasan AI
+                chatBox.removeChild(loadingMessageDiv);
+                appendMessage(aiResponseText, 'ai-message');
+
+            } catch (error) {
+                console.error('Error calling Groq API:', error);
+                chatBox.removeChild(loadingMessageDiv); // Hapus indikator mengetik jika ada error
+                appendMessage('Maaf, ada masalah saat menghubungi ZyanAI. Silakan coba lagi nanti.', 'ai-message');
+            } finally {
+                sendButton.disabled = false; // Aktifkan kembali tombol
+                userInput.disabled = false; // Aktifkan kembali input
+                userInput.focus(); // Fokus kembali ke input
+            }
+        }
+
+        function appendMessage(text, className) {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message', className);
+            messageDiv.textContent = text;
+            chatBox.appendChild(messageDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        // Kirim pesan saat tombol Enter ditekan
+        document.getElementById('user-input').addEventListener('keypress', function(event) {
+            if (event.key === 'Enter' && !sendButton.disabled) {
+                sendMessage();
+            }
+        });
+
+        // Pesan sambutan awal dari AI
+        // Sudah ada di HTML, jadi tidak perlu panggil appendMessage lagi di sini.
+        // appendMessage('Halo! Saya ZyanAI, asisten cerdas Anda. Ada yang bisa saya bantu?', 'ai-message');
+
+    </script>
+</body>
+</html>
